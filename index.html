@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="ta">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Relax To Order — Service Man Application</title>
+
+  <!-- ====== Styles (All in file) ====== -->
+  <style>
+    :root{
+      --accent:#0b74de;
+      --muted:#666;
+      --card-bg:#fff;
+      --bg:#f4f7fb;
+      --radius:12px;
+      --shadow:0 6px 18px rgba(12,38,63,0.08);
+      --pdf-width-mm:210mm; /* for reference */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Noto Sans Tamil", "Helvetica Neue", Arial, sans-serif;background:var(--bg);color:#0b2540}
+    .container{max-width:920px;margin:18px auto;padding:16px}
+    header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+    header h1{font-size:20px;margin:0}
+    .card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:14px}
+    form .row{display:flex;gap:12px;flex-wrap:wrap}
+    label{display:block;font-size:13px;margin-bottom:6px;color:#0b2540}
+    input[type="text"], input[type="number"], input[type="tel"], textarea, select{
+      width:100%;padding:10px;border-radius:10px;border:1px solid #d6e1ee;background:#fbfdff;font-size:14px;
+    }
+    .col{flex:1 1 220px;min-width:220px}
+    textarea{min-height:86px;resize:vertical}
+    .small{flex:0 0 120px;min-width:120px}
+    .file-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+    .thumb{width:84px;height:84px;border-radius:8px;border:1px dashed #cfe0f7;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .note{font-size:12px;color:var(--muted);margin-top:6px}
+    .t-and-c{height:160px;overflow:auto;padding:10px;border-radius:10px;border:1px solid #e1eef8;background:#fbfdff}
+    .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+    button.ghost{background:#eef6ff;color:var(--accent);font-weight:600}
+    .flex-between{display:flex;justify-content:space-between;align-items:center}
+    .required{color:#c62828;margin-left:6px}
+    /* Signature area */
+    #sig-wrapper{border-radius:10px;border:1px solid #d9e9ff;background:#fff;padding:8px}
+    #signature{width:100%;height:160px;border-radius:8px;background:#f8fbff;touch-action: none}
+    .center{display:flex;justify-content:center;align-items:center}
+    /* Responsive */
+    @media (max-width:640px){
+      .col{min-width:100%}
+      .small{min-width:48%}
+    }
+
+    /* Print/PDF friendly A4 styles for the printable area (kept hidden until PDF creation) */
+    #printable{
+      width:210mm; /* A4 width */
+      min-height:297mm; /* A4 height */
+      background:#fff;color:#000;padding:16mm 16mm;
+      box-sizing:border-box;font-family:Arial, Helvetica, sans-serif;
+    }
+    .p-header{display:flex;justify-content:space-between;align-items:center}
+    .p-title{font-size:20px;font-weight:700}
+    .meta-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .meta-table td{padding:6px 4px;border:1px solid #ddd;font-size:13px;vertical-align:top}
+    .photos-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .p-thumb{width:80px;height:80px;border:1px solid #ddd;object-fit:cover}
+    .terms-block{margin-top:14px;font-size:13px;line-height:1.45}
+    .signature-block{margin-top:18px}
+    .sig-img{max-width:260px;height:auto;border:1px solid #111}
+    /* force page break before signature to ensure signature lands after terms */
+    .page-break-before{page-break-before:always;break-before:page}
+    /* small helper to not cut table rows awkwardly */
+    .avoid-break{page-break-inside:avoid;break-inside:avoid}
+  </style>
+
+  <!-- ====== Required External Libraries (CDN) ======
+       Using widely used client-side libs to produce high-quality A4 PDF with automatic page splitting.
+       These are loaded from CDNs directly inside this single file.
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Relax To Order — Service Man Application</h1>
+        <div style="font-size:13px;color:var(--muted)">Mobile friendly — fill details, sign, and generate A4 PDF</div>
+      </div>
+    </header>
+
+    <form id="appForm" class="card" autocomplete="off" novalidate>
+      <!-- Personal Details -->
+      <div class="row">
+        <div class="col">
+          <label>Full Name <span class="required">*</span></label>
+          <input id="name" name="name" type="text" placeholder="உங்கள் முழுப்பெயர்" required>
+        </div>
+        <div class="small">
+          <label>Age <span class="required">*</span></label>
+          <input id="age" name="age" type="number" min="18" placeholder="வயது" required>
+        </div>
+        <div class="small">
+          <label>Phone <span class="required">*</span></label>
+          <input id="phone" name="phone" type="tel" placeholder="10-digit phone" pattern="[0-9]{10}" required>
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="row">
+        <div class="col">
+          <label>Address <span class="required">*</span></label>
+          <textarea id="address" name="address" placeholder="முகவரி" required></textarea>
+        </div>
+      </div>
+
+      <!-- Vehicle Details -->
+      <h3 style="margin-top:12px;margin-bottom:8px;font-size:16px">Vehicle Details</h3>
+      <div class="row">
+        <div class="col">
+          <label>Vehicle Type <span class="required">*</span></label>
+          <select id="vehicleType" required>
+            <option value="">-- தேர்ந்தெடு --</option>
+            <option>Bike</option>
+            <option>Scooty</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="col">
+          <label>Vehicle Model / Name</label>
+          <input id="vehicleModel" type="text" placeholder="Model">
+        </div>
+        <div class="small">
+          <label>Registration No.</label>
+          <input id="regNo" type="text" placeholder="TN-00-XX-0000">
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="row">
+        <div class="col">
+          <label>License Number <span class="required">*</span></label>
+          <input id="licenseNo" type="text" placeholder="Driving License" required>
+        </div>
+        <div class="small">
+          <label>License Valid Till</label>
+          <input id="licenseValid" type="text" placeholder="MM/YYYY">
+        </div>
+      </div>
+
+      <!-- File uploads -->
+      <h3 style="margin-top:12px;margin-bottom:8px;font-size:16px">Photos & Documents</h3>
+      <div class="card" style="padding:10px">
+        <label>Candidate Photo <span class="required">*</span></label>
+        <input id="candidatePhoto" type="file" accept="image/*" required>
+        <div class="file-grid" id="candidatePreview"></div>
+
+        <label style="margin-top:10px">Vehicle Photo <span class="required">*</span></label>
+        <input id="vehiclePhoto" type="file" accept="image/*" required>
+        <div class="file-grid" id="vehiclePreview"></div>
+
+        <label style="margin-top:10px">License Front <span class="required">*</span></label>
+        <input id="licenseFront" type="file" accept="image/*" required>
+        <div class="file-grid" id="licFPreview"></div>
+
+        <label style="margin-top:10px">License Back <span class="required">*</span></label>
+        <input id="licenseBack" type="file" accept="image/*" required>
+        <div class="file-grid" id="licBPreview"></div>
+
+        <label style="margin-top:10px">RC / Insurance / FC (any) <span class="required">*</span></label>
+        <input id="rcDoc" type="file" accept="image/*,application/pdf" required>
+        <div class="file-grid" id="rcPreview"></div>
+
+        <div class="note">அடிப்படையில் image-only files preview செய்யப்படுகிறது. PDF RC/Insurance ன்னும் upload செய்யலாம்; அது PDF ஆக இருந்தால் அது PDF என்று label காட்டப்படும்.</div>
+      </div>
+
+      <!-- Terms & Conditions -->
+      <h3 style="margin-top:12px;margin-bottom:8px;font-size:16px">Terms & Conditions</h3>
+      <div class="card" style="padding:12px">
+        <div class="t-and-c" id="termsText">
+          <!-- Putting the full T&C Tamil content here (user-provided). -->
+          <strong>வேலை நேரம்:</strong>
+          <p>காலை 07:00 மணி முதல் மாலை 07:00 மணி வரை வேலை செய்ய வேண்டும்.</p>
+
+          <strong>வண்டி தொடர்பான விதிமுறைகள்:</strong>
+          <ol>
+            <li>உங்கள் சொந்த வண்டி இருக்க வேண்டும். அது நன்றாக mileage தரக்கூடியதாக இருக்க வேண்டும்.</li>
+            <li>வண்டிக்கு Fuel Company தரும்.</li>
+            <li>Service செய்து வந்தால், Service bill-ஐ கொடுத்து Company-யிடம் பேசிக்கொள்ள வேண்டும்.</li>
+            <li>வண்டியில் Insurance, RC Book, FC (Fitness Certificate) அனைத்தும் இருக்க வேண்டும்.</li>
+            <li>செல்லுபடியாகும் Driving License உங்களுக்கு இருக்க வேண்டும். அது Active-ஆ இருக்க வேண்டும்.</li>
+            <li>வயது 18 முடிந்தவர்கள் மட்டுமே வேலைக்கு சேர முடியும்.</li>
+          </ol>
+
+          <strong>பாதுகாப்பு & சட்டம்:</strong>
+          <ol>
+            <li>வண்டியில் போகும் போது தலைகவசம் (Helmet) கட்டாயம் அணிய வேண்டும்.</li>
+            <li>மதுபானம் அல்லது போதைப்பொருள் உட்கொண்டு வேலைக்கு வரக்கூடாது.</li>
+            <li>Accident ஏற்பட்டால், அதற்கான முழுப் பொறுப்பு உங்களுடையது. Company எந்தவிதத்திலும் பொறுப்பேற்காது.</li>
+            <li>போலீஸ் யிடம் மாட்டிக்கொண்டால், அபராதம் அல்லது வழக்கு அனைத்தும் உங்களுடைய பொறுப்பு.</li>
+          </ol>
+
+          <strong>வாடிக்கையாளர் தொடர்பான விதிமுறைகள்:</strong>
+          <ol>
+            <li>Customer Data (Phone Number, Address போன்றவை) வேறு எந்தப் பயன்பாட்டிற்கும் பயன்படுத்தக்கூடாது.</li>
+            <li>Company Business விஷயங்களை வெளியே சொல்லக்கூடாது.</li>
+            <li>Customer-ஐ எப்போதும் மரியாதையுடன் நடத்த வேண்டும்.</li>
+            <li>Order அதிகமாக cancel செய்யக்கூடாது.</li>
+            <li>அடிக்கடி Order cancel செய்தால் warning / action வரும்.</li>
+            <li>Customer-ஐ எதிர்த்து சண்டை போடக்கூடாது அல்லது தவறான வார்த்தை பயன்படுத்தக்கூடாது.</li>
+          </ol>
+
+          <strong>ஒழுங்கு & நடவடிக்கை:</strong>
+          <ol>
+            <li>விதிமுறைகளை மீறினால் சம்பளம் குறைக்கப்படலாம் அல்லது வேலை நீக்கம் செய்யப்படலாம்.</li>
+            <li>3 warning-க்கு பிறகு வேலை cancel செய்யப்படும் வாய்ப்பு உள்ளது.</li>
+            <li>முதல் 1 மாதம் probation period (சோதனை காலம்). அந்த நேரத்தில்仕事 ஒழுங்காக செய்யாவிட்டால் வேலை நீக்கப்படும்.</li>
+            <li>வேலை விட்டு செல்லும் போது Company கொடுத்த Uniform, Bag, பொருட்கள் அனைத்தையும் திருப்பி கொடுத்துவிட்டு செல்ல வேண்டும்</li>
+          </ol>
+
+          <strong>அக்சிடென்ட் & உயிரிழப்பு:</strong>
+          <ol>
+            <li>வேலைக்கு வந்தபின் எந்தவொரு விபத்து (Accident) ஏற்பட்டாலும் அதற்கான காயம், மருத்துவச் செலவு, அல்லது உயிரிழப்பு ஆகிய அனைத்துக்கும் பணியாளர் அல்லது அவரது குடும்பமே முழுப் பொறுப்பு.</li>
+            <li>Relax To Order நிர்வாகம் எந்தவிதத்திலும் மருத்துவச் செலவு, இழப்பீடு அல்லது உயிரிழப்பு தொடர்பான பொறுப்பை ஏற்காது.</li>
+            <li>வேலைக்காக வண்டி ஓட்டும் போது ஏற்படும் விபத்துக்கும் Company எந்தவித சட்டரீதியான பொறுப்பும் ஏற்காது.</li>
+            <li>இதற்கு சம்பந்தப்பட்ட எந்தக் கோரிக்கையும் (Claim, Case, Compensation) Company-க்கு எதிராக வைக்கக்கூடாது என்று பணியாளர் ஏற்கிறார்</li>
+          </ol>
+
+          <strong>வேலை நிலை (Nature of Work):</strong>
+          <ol>
+            <li>நான் (பணியாளர்) இந்த வேலைக்கு ஒப்பந்த அடிப்படையில் (Contract Basis) மட்டும் சேர்கிறேன் என்பதை புரிந்துகொள்கிறேன்.</li>
+            <li>நான் Relax To Order நிறுவனத்தின் நிரந்தர ஊழியர் (Permanent Employee) அல்ல என்பதை ஏற்கிறேன்.</li>
+            <li>எனவே PF, ESI, Bonus, Gratuity, Pension, Compensation போன்ற நிரந்தர ஊழியர்களுக்கான உரிமைகள் எனக்கு கிடையாது என்பதை தெளிவாக அறிகிறேன்.</li>
+            <li>இந்த வேலை ஒப்பந்த காலத்தில் நான் Delivery வேலை மட்டும் செய்ய வேண்டும், வேறு எந்த உரிமையும் எனக்கு இல்லை என்பதை ஏற்கிறேன்.</li>
+            <li>வேலை எந்த நேரத்திலும் Company விதிமுறைகளை மீறினால் முடிவடையலாம் என்பதை புரிந்துகொள்கிறேன்.</li>
+          </ol>
+        </div>
+
+        <div style="margin-top:8px" class="flex-between">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="agree" type="checkbox" style="width:18px;height:18px" />
+            <label for="agree" style="margin:0;font-size:14px">நான் மேலே உள்ள விதிமுறைகளை படித்துவிட்டு ஒப்புக்கொள்கிறேன் <span class="required">*</span></label>
+          </div>
+          <div style="font-size:12px;color:var(--muted)">Terms must be accepted to submit</div>
+        </div>
+      </div>
+
+      <!-- Signature -->
+      <h3 style="margin-top:12px;margin-bottom:8px;font-size:16px">Digital Signature</h3>
+      <div class="card" style="padding:12px">
+        <div id="sig-wrapper">
+          <canvas id="signature"></canvas>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button type="button" id="clearSig" class="ghost">Clear Signature</button>
+          <div class="note">Use mouse (desktop) or finger (mobile) to sign. Signature is required.</div>
+        </div>
+      </div>
+
+      <!-- Submit -->
+      <div class="card">
+        <div class="flex-between">
+          <div>
+            <div style="font-size:13px;color:var(--muted)">All fields marked with <span class="required">*</span> are mandatory.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="submitBtn" type="submit">Generate A4 PDF & Download</button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <!-- Hidden printable area for PDF generation -->
+    <div id="printContainer" style="display:none">
+      <div id="printable"></div> <!-- JS will fill this -->
+    </div>
+
+    <footer style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;">
+      Relax To Order — Service Man Application Form
+    </footer>
+  </div>
+
+  <!-- ====== Script: Form logic, previews, signature, PDF generation ====== -->
+  <script>
+  (function(){
+    // --- Helper state ---
+    const state = {
+      images: {
+        candidate: null,
+        vehicle: null,
+        licenseFront: null,
+        licenseBack: null,
+        rc: null
+      },
+      rcIsPdf: false,
+      signatureDataUrl: null
+    };
+
+    // --- DOM refs ---
+    const candidatePhoto = document.getElementById('candidatePhoto');
+    const vehiclePhoto = document.getElementById('vehiclePhoto');
+    const licFront = document.getElementById('licenseFront');
+    const licBack = document.getElementById('licenseBack');
+    const rcDoc = document.getElementById('rcDoc');
+
+    const candidatePreview = document.getElementById('candidatePreview');
+    const vehiclePreview = document.getElementById('vehiclePreview');
+    const licFPreview = document.getElementById('licFPreview');
+    const licBPreview = document.getElementById('licBPreview');
+    const rcPreview = document.getElementById('rcPreview');
+
+    // signature canvas
+    const canvas = document.getElementById('signature');
+    const clearSig = document.getElementById('clearSig');
+    const agree = document.getElementById('agree');
+    const form = document.getElementById('appForm');
+    const printable = document.getElementById('printable');
+
+    // set up canvas size to device pixel ratio for sharpness
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#111';
+    }
+
+    // initialize canvas size relative to container
+    function initCanvasSize() {
+      // ensure canvas has a visual height
+      canvas.style.width = '100%';
+      canvas.style.height = '160px';
+      resizeCanvas();
+    }
+    initCanvasSize();
+    window.addEventListener('resize', resizeCanvas);
+
+    // drawing logic
+    let drawing = false;
+    const ctx = canvas.getContext('2d');
+
+    function pointerDown(e){
+      drawing = true;
+      ctx.beginPath();
+      const p = getPos(e);
+      ctx.moveTo(p.x, p.y);
+      e.preventDefault();
+    }
+    function pointerMove(e){
+      if(!drawing) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      e.preventDefault();
+    }
+    function pointerUp(e){
+      if(drawing) {
+        drawing = false;
+      }
+    }
+    function getPos(e){
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches && e.touches.length) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+    // support pointer events & touch
+    canvas.addEventListener('pointerdown', pointerDown);
+    canvas.addEventListener('pointermove', pointerMove);
+    window.addEventListener('pointerup', pointerUp);
+    // touch fallback
+    canvas.addEventListener('touchstart', pointerDown);
+    canvas.addEventListener('touchmove', pointerMove);
+    window.addEventListener('touchend', pointerUp);
+
+    clearSig.addEventListener('click', function(){
+      const r = confirm('Signature clear செய்ய செய்யணுமா?');
+      if(!r) return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      state.signatureDataUrl = null;
+    });
+
+    // handle file previews (image -> thumbnail)
+    function handleFileInput(fileInput, previewNode, key){
+      fileInput.addEventListener('change', function(e){
+        const f = this.files && this.files[0];
+        previewNode.innerHTML = '';
+        if(!f) {
+          state.images[key] = null;
+          if(key==='rc') state.rcIsPdf=false;
+          return;
+        }
+        const type = f.type || '';
+        if(type === 'application/pdf') {
+          // show pdf label
+          const el = document.createElement('div');
+          el.className = 'thumb';
+          el.style.padding = '8px';
+          el.innerHTML = '<div style="text-align:center;font-size:12px;color:#0b3a6a">PDF Document<br/>' + (f.name||'RC') + '</div>';
+          previewNode.appendChild(el);
+          state.images[key] = null;
+          state.rcIsPdf = true;
+          // we will not try to embed PDF image, but will note file name; html2pdf will not embed PDF pages as images.
+          // For best reliability keep RC in image format; if user provides PDF we show label.
+          // store file for later as blob URL
+          const reader = new FileReader();
+          reader.onload = function(ev){ state.images[key] = ev.target.result; state.rcIsPdf=true; }
+          reader.readAsDataURL(f);
+          return;
+        }
+        if(type.startsWith('image/')){
+          const reader = new FileReader();
+          reader.onload = function(ev){
+            const url = ev.target.result;
+            const el = document.createElement('div');
+            el.className = 'thumb';
+            el.innerHTML = '<img src="'+url+'" alt="preview">';
+            previewNode.appendChild(el);
+            state.images[key] = url;
+          }
+          reader.readAsDataURL(f);
+        } else {
+          const el = document.createElement('div');
+          el.className = 'thumb';
+          el.innerText = 'Unsupported';
+          previewNode.appendChild(el);
+          state.images[key] = null;
+        }
+      });
+    }
+
+    handleFileInput(candidatePhoto, candidatePreview, 'candidate');
+    handleFileInput(vehiclePhoto, vehiclePreview, 'vehicle');
+    handleFileInput(licFront, licFPreview, 'licenseFront');
+    handleFileInput(licBack, licBPreview, 'licenseBack');
+    handleFileInput(rcDoc, rcPreview, 'rc');
+
+    // validate signature existence (non-blank)
+    function signatureIsBlank() {
+      // check if canvas has any non-transparent pixels
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width;
+      blank.height = canvas.height;
+      const bctx = blank.getContext('2d');
+      bctx.fillStyle = '#fff';
+      bctx.fillRect(0,0,blank.width, blank.height);
+      // compare data
+      try {
+        const data1 = canvas.toDataURL();
+        const data2 = blank.toDataURL();
+        return data1 === data2;
+      } catch(e) {
+        return false; // can't detect — assume not blank
+      }
+    }
+
+    // Build printable content and then generate PDF
+    form.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+
+      // simple validation
+      const requiredFields = [
+        {id:'name', name:'Name'},
+        {id:'age', name:'Age'},
+        {id:'phone', name:'Phone'},
+        {id:'address', name:'Address'},
+        {id:'vehicleType', name:'Vehicle Type'},
+        {id:'licenseNo', name:'License Number'}
+      ];
+      for(const f of requiredFields){
+        const el = document.getElementById(f.id) || document.getElementById(f.id);
+        if(!el || !el.value || (el.tagName==='SELECT' && el.value==='')) {
+          alert(f.name + ' ဖြည့်வும் (Please fill ' + f.name + ')');
+          el && el.focus();
+          return;
+        }
+      }
+      // ensure file uploads are present
+      const fileInputs = [candidatePhoto, vehiclePhoto, licFront, licBack, rcDoc];
+      for(const fi of fileInputs){
+        if(!fi.files || fi.files.length===0){
+          alert('All photos/documents must be uploaded.');
+          fi.focus();
+          return;
+        }
+      }
+
+      // ensure agree checked
+      if(!agree.checked){
+        alert('You must accept Terms & Conditions to continue.');
+        return;
+      }
+
+      // ensure signature present
+      if(signatureIsBlank()){
+        alert('Please provide your signature in the Digital Signature box.');
+        return;
+      }
+      // capture signature dataurl
+      try {
+        const sigData = canvas.toDataURL('image/png');
+        state.signatureDataUrl = sigData;
+      } catch(e) {
+        alert('Signature capture failed. Please try again.');
+        return;
+      }
+
+      // Build printable HTML dynamically
+      buildPrintable();
+
+      // produce PDF using html2pdf (wraps jsPDF + html2canvas)
+      await generatePdf();
+    });
+
+    function safeText(str){
+      if(!str && str!==0) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function buildPrintable(){
+      // gather values
+      const vals = {
+        name: document.getElementById('name').value,
+        age: document.getElementById('age').value,
+        phone: document.getElementById('phone').value,
+        address: document.getElementById('address').value.replace(/\n/g,'<br/>'),
+        vehicleType: document.getElementById('vehicleType').value,
+        vehicleModel: document.getElementById('vehicleModel').value,
+        regNo: document.getElementById('regNo').value,
+        licenseNo: document.getElementById('licenseNo').value,
+        licenseValid: document.getElementById('licenseValid').value,
+        termsHtml: document.getElementById('termsText').innerHTML
+      };
+
+      // Build HTML content
+      let html = '';
+      html += '<div class="p-header avoid-break"><div class="p-title">Relax To Order — Service Man Application</div><div>Generated: ' + new Date().toLocaleString() + '</div></div>';
+      html += '<table class="meta-table avoid-break">';
+      html += `<tr><td><strong>Name</strong></td><td>${safeText(vals.name)}</td></tr>`;
+      html += `<tr><td><strong>Age</strong></td><td>${safeText(vals.age)}</td></tr>`;
+      html += `<tr><td><strong>Phone</strong></td><td>${safeText(vals.phone)}</td></tr>`;
+      html += `<tr><td><strong>Address</strong></td><td>${vals.address}</td></tr>`;
+      html += `<tr><td><strong>Vehicle Type</strong></td><td>${safeText(vals.vehicleType)}</td></tr>`;
+      html += `<tr><td><strong>Vehicle Model</strong></td><td>${safeText(vals.vehicleModel)}</td></tr>`;
+      html += `<tr><td><strong>Registration No.</strong></td><td>${safeText(vals.regNo)}</td></tr>`;
+      html += `<tr><td><strong>License No.</strong></td><td>${safeText(vals.licenseNo)}</td></tr>`;
+      html += `<tr><td><strong>License Valid Till</strong></td><td>${safeText(vals.licenseValid)}</td></tr>`;
+      html += '</table>';
+
+      // photos section
+      html += '<div class="avoid-break"><h3 style="margin-top:8px;margin-bottom:6px">Photos & Documents</h3><div class="photos-row">';
+      // helper to insert image or placeholder
+      function photoHtml(src, label){
+        if(!src) return '<div style="width:120px;text-align:center;font-size:12px;color:#666;padding:6px;border:1px dashed #ddd">'+label+'<br/>Not available</div>';
+        // if src looks like a data URL of pdf? seldom, but if it's pdf we will place a label
+        if(src.startsWith('data:application/pdf') || src.toLowerCase().includes('.pdf')) {
+          return '<div style="width:220px;padding:8px;border:1px solid #ddd"><strong>'+label+ '</strong><div style="font-size:12px;color:#444;margin-top:6px">PDF Uploaded (will be attached as image if provided as image; PDF data included as data URL)</div></div>';
+        }
+        return '<div style="width:120px;text-align:center"><img class="p-thumb" src="'+src+'" alt="'+label+'"><div style="font-size:12px;margin-top:6px">'+label+'</div></div>';
+      }
+
+      html += photoHtml(state.images.candidate,'Candidate Photo');
+      html += photoHtml(state.images.vehicle,'Vehicle Photo');
+      html += photoHtml(state.images.licenseFront,'License Front');
+      html += photoHtml(state.images.licenseBack,'License Back');
+      html += photoHtml(state.images.rc,'RC/Insurance/FC');
+      html += '</div></div>';
+
+      // Add terms (this may be long)
+      html += '<div class="terms-block">'+vals.termsHtml+'</div>';
+
+      // Ensure signature is on a new page after terms: add page-break element then signature block
+      html += '<div class="page-break-before signature-block avoid-break">';
+      html += '<h3>Digital Signature</h3>';
+      // include name & phone near signature
+      html += '<div><strong>Name:</strong> ' + safeText(vals.name) + ' &nbsp;&nbsp; <strong>Phone:</strong> ' + safeText(vals.phone) + '</div>';
+      html += '<div style="margin-top:10px"><img class="sig-img" src="' + safeText(state.signatureDataUrl) + '" alt="signature"></div>';
+      html += '<div style="font-size:12px;color:#666;margin-top:8px">Signature placed on final page after Terms & Conditions.</div>';
+      html += '</div>';
+
+      printable.innerHTML = html;
+      // show printable for debug optionally (developer)
+      // document.getElementById('printContainer').style.display = 'block';
+    }
+
+    async function generatePdf(){
+      // Options for html2pdf
+      // We choose a4, portrait, and give margins roughly 10-12mm
+      const opt = {
+        margin: [12, 12, 12, 12], // mm [top,left,bottom,right]
+        filename: 'RelaxToOrder_ServiceMan_Application.pdf',
+        image: { type: 'jpeg', quality: 0.92 },
+        html2canvas: {
+          allowTaint: true,
+          useCORS: true,
+          scale: 2,
+          logging: false,
+          // set higher width to avoid blurriness
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css','legacy'] } // rely on CSS page breaks
+      };
+
+      // html2pdf needs the node to be visible in the DOM for layout -> it is in DOM but hidden; to be safe, temporarily position it visible (offscreen)
+      const container = document.getElementById('printContainer');
+      container.style.display = 'block';
+      container.style.position = 'fixed';
+      container.style.left = '200%'; // offscreen so user doesn't see flash
+      container.style.top = '0';
+      container.style.opacity = '0';
+      // small delay so browser can render content
+      await new Promise(r => setTimeout(r, 180));
+
+      try {
+        await html2pdf().set(opt).from(printable).save();
+      } catch(err){
+        console.error(err);
+        alert('PDF creation failed: ' + (err.message || err));
+      } finally {
+        // hide again
+        container.style.display = 'none';
+        container.style.position = '';
+        container.style.left = '';
+        container.style.top = '';
+        container.style.opacity = '';
+      }
+    }
+
+    // Prevent pinch-zoom and other issues during signature on mobile: optional
+    // But do not override default scrolling outside signature area.
+
+    // end IIFE
+  })();
+  </script>
+</body>
+</html>
