@@ -1,4 +1,7 @@
 <!doctype html>
+
+
+<!doctype html>
 <html lang="ta">
 <head>
   <meta charset="utf-8" />
@@ -266,17 +269,123 @@
           </div>
         </div>
       </div>
+      <center>
+      <h3>PDF வந்தவுடன் Whatsapp யில் அனுப்பவும்</h3>
     </form>
+    </center>
 
     <!-- Hidden printable area for PDF generation -->
     <div id="printContainer" style="display:none">
       <div id="printable"></div> <!-- JS will fill this -->
     </div>
-
+         
     <footer style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;">
       Relax To Order — Service Man Application Form
     </footer>
   </div>
+  
+  
+
+  
+  
+  <!-- Flowting Button -->
+  
+  
+ <!-- ✅ Floating WhatsApp Button -->
+<a id="helpButton" href="https://wa.me/9344165879" target="_blank" title="WhatsApp Chat">
+  <div class="iconBox">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
+         alt="WhatsApp" />
+  </div>
+</a>
+
+<style>
+  #helpButton {
+    position: fixed;
+    bottom: 100px;
+    right: 20px;
+    z-index: 1000;
+    transition: transform 0.2s ease;
+    cursor: grab;
+    touch-action: none;
+    text-decoration: none;
+  }
+
+  .iconBox {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    border-radius: 50%;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    display: flex;
+    align-items: center;   /* ✅ Center vertical */
+    justify-content: center; /* ✅ Center horizontal */
+  }
+
+  .iconBox img {
+    width: 38px;   /* ✅ Moderate size */
+    height: 38px;
+  }
+
+  .iconBox:hover {
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+  }
+</style>
+
+<script>
+  const button = document.getElementById("helpButton");
+  let isDragging = false;
+  let currentX = 0, currentY = 0;
+  let initialX, initialY;
+  let xOffset = 0, yOffset = 0;
+
+  const setTranslate = (xPos, yPos, el) => {
+    el.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`;
+  };
+
+  const dragStart = (e) => {
+    isDragging = true;
+    initialX = e.type === "touchstart" ? e.touches[0].clientX - xOffset : e.clientX - xOffset;
+    initialY = e.type === "touchstart" ? e.touches[0].clientY - yOffset : e.clientY - yOffset;
+  };
+
+  const dragEnd = () => {
+    isDragging = false;
+    xOffset = currentX;
+    yOffset = currentY;
+  };
+
+  const drag = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+    const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+    currentX = clientX - initialX;
+    currentY = clientY - initialY;
+    setTranslate(currentX, currentY, button);
+  };
+
+  button.addEventListener("mousedown", dragStart);
+  button.addEventListener("mouseup", dragEnd);
+  button.addEventListener("mousemove", drag);
+  button.addEventListener("mouseleave", dragEnd);
+
+  button.addEventListener("touchstart", dragStart, { passive: false });
+  button.addEventListener("touchend", dragEnd);
+  button.addEventListener("touchmove", drag, { passive: false });
+</script>
+
+
+
+  
+  
+  
+  <!-- Flowting Button -->
+  
+  
+  
 
   <!-- ====== Script: Form logic, previews, signature, PDF generation ====== -->
   <script>
@@ -643,4 +752,10 @@
   })();
   </script>
 </body>
+</html>
+
+
+
+
+
 </html>
